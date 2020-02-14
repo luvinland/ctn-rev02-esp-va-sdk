@@ -18,12 +18,18 @@
 #include <va_dsp.h>
 #include <lyrat_init.h>
 
+#include "app_defs.h"
+
 #define WWE_TASK_STACK (8 * 1024)
 #define RB_TASK_STACK (8 * 1024)
 #define RB_SIZE (4 * 1024)
 
 #define DETECT_SAMP_RATE 16000UL
+#ifdef CTN_REV01
+#define SAMP_RATE 16000UL
+#else
 #define SAMP_RATE 48000UL
+#endif
 #define SAMP_BITS I2S_BITS_PER_SAMPLE_16BIT
 #define SAMP_MS 20
 //Sample size for 20millisec data on 48KHz/16bit sampling. Division factor is (sectomillisec * bitsinbytes)

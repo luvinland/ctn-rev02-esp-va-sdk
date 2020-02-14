@@ -32,6 +32,20 @@
 
 #include <esp_audio_mem.h>
 
+#include "app_defs.h"
+
+#ifdef CTN_REV01_UART_COMM
+#define PATTERN_CHR_NUM    (3)         /*!< Set the number of consecutive and identical characters received by receiver which defines a UART pattern*/
+#define BUF_SIZE (1024)
+
+static int sendData(const char* data)
+{
+	const int len = strlen(data);
+	const int txBytes = uart_write_bytes(UART_NUM_0, data, len);
+	return txBytes;
+}
+#endif
+
 static TaskHandle_t cli_task;
 static int stop;
 static const char *TAG = "[scli]";
@@ -44,9 +58,22 @@ static void scli_task(void *arg)
     esp_err_t ret;
     QueueHandle_t uart_queue;
     uart_event_t event;
+#ifdef CTN_REV01_UART_COMM
+	size_t buffered_size;
+	uint8_t* dtmp = (uint8_t*) malloc(BUF_SIZE);
+	char* one = "1";
+#endif
 
     ESP_LOGI(TAG, "Initialising UART on port %d", uart_num);
     uart_driver_install(uart_num, 256, 0, 8, &uart_queue, 0);
+
+#ifdef CTN_REV01_UART_COMM
+	//Set uart pattern detect function.
+	uart_enable_pattern_det_intr(uart_num, '+', PATTERN_CHR_NUM, 10000, 10, 10);
+	//Reset the pattern queue length to record at most 20 pattern positions.
+	uart_pattern_queue_reset(uart_num, 20);
+#endif
+
     /* Initialize the console */
     esp_console_config_t console_config = {
             .max_cmdline_args = 8,
@@ -62,6 +89,9 @@ static void scli_task(void *arg)
         i = 0;
         do {
             ret = xQueueReceive(uart_queue, (void * )&event, (portTickType)portMAX_DELAY);
+#ifdef CTN_REV01_UART_COMM
+			bzero(dtmp, BUF_SIZE);
+#endif
             if (ret != pdPASS) {
                 if(stop == 1) {
                     break;
@@ -79,6 +109,29 @@ static void scli_task(void *arg)
                     i++;
                 }
             }
+#ifdef CTN_REV01_UART_COMM
+			else if (event.type == UART_PATTERN_DET) {
+				uart_get_buffered_data_len(uart_num, &buffered_size);
+				int pos = uart_pattern_pop_pos(uart_num);
+				ESP_LOGE(TAG, "[UART PATTERN DETECTED] pos: %d, buffered size: %d", pos, buffered_size);
+				if (pos == -1) {
+					// There used to be a UART_PATTERN_DET event, but the pattern position queue is full so that it can not
+					// record the position. We should set a larger queue size.
+					// As an example, we directly flush the rx buffer here.
+					uart_flush_input(uart_num);
+				} else {
+					uart_read_bytes(uart_num, dtmp, pos, 0);
+					ESP_LOGE(TAG, "read data: %s", dtmp);
+					if(!strcmp((char*)dtmp, one))
+					{
+						ESP_LOGE(TAG, "senddata");
+						sendData("2---");
+					}
+					uart_flush_input(uart_num);
+				}
+			}
+#endif
+
         } while ((i < 255) && linebuf[i-1] != '\r');
         if (stop) {
             break;

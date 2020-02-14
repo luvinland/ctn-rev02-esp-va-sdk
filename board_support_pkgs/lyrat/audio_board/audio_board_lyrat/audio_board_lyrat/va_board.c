@@ -23,6 +23,8 @@
 #include <va_board.h>
 #include <media_hal_playback.h>
 
+#include "app_defs.h"
+
 #define VA_TAG "AUDIO_BOARD"
 
 #define VA_ASSERT(a, format, b, ...) \
@@ -43,7 +45,11 @@ int va_board_init()
 
     media_hal_playback_cfg_t cfg = {
         .channels = 2,
-        .sample_rate = 48000,
+#ifdef CTN_REV01
+		.sample_rate = 16000,
+#else
+		.sample_rate = 48000,
+#endif
         .i2s_port_num = I2S_NUM_0,
         .bits_per_sample = 16,
     };

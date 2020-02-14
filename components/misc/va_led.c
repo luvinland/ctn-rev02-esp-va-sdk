@@ -10,6 +10,8 @@
 #include <va_led.h>
 #include <esp_timer.h>
 
+#include "app_defs.h"
+
 //#define EN_STACK_MEASUREMENT
 
 static const char *TAG = "[va_led]";
@@ -104,6 +106,11 @@ static void va_led_set_state(size_t sz, const va_led_specs_t *va_led_conf)
     }
 }
 
+#ifdef CTN_REV01
+#define TRI_LED 14
+#define RES_LED 13
+#endif
+
 static void va_led_task(void *arg)
 {
     bool va_led_is_mute = false;
@@ -165,6 +172,10 @@ static void va_led_task(void *arg)
                     va_led_tick = portMAX_DELAY;
                 break;
                 case VA_IDLE :
+#ifdef CTN_REV01
+					gpio_set_level(TRI_LED, 1);
+					gpio_set_level(RES_LED, 1);
+#endif
                     if(va_led_listening_end_flag && (va_led_priority[3].va_led_current_state == VA_IDLE)) {
                         va_led_set_state(va_led_con[VA_LED_WW_DEACTIVATE].va_led_state_sz, va_led_con[VA_LED_WW_DEACTIVATE].va_led_state_st);
                         va_led_listening_end_flag = false;
@@ -202,6 +213,9 @@ static void va_led_task(void *arg)
                     }
                 break;
                 case VA_LISTENING :
+#ifdef CTN_REV01
+					gpio_set_level(TRI_LED, 0);
+#endif
                     va_led_listening_end_flag = true;
                     if (va_led_listen_on_going == false && !(va_led_con[VA_LED_WW_ACTIVE].va_led_state_st->loop_en)) {
                         va_led_set_state(va_led_con[VA_LED_WW_ACTIVE].va_led_state_sz, va_led_con[VA_LED_WW_ACTIVE].va_led_state_st);
@@ -234,6 +248,10 @@ static void va_led_task(void *arg)
                     va_led_tick = 0;
                 break;
                 case VA_SPEAKING :
+#ifdef CTN_REV01
+					gpio_set_level(TRI_LED, 1);
+					gpio_set_level(RES_LED, 0);
+#endif
                     va_led_listening_end_flag = true;
                     va_led_listen_on_going = false;
                     if (va_led_alert_short_en) {
