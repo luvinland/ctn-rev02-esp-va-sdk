@@ -28,7 +28,27 @@ extern "C" {
 /*
 	Jace. 191107. communicate external device using UART.
 */
-#define CTN_REV01_UART_COMM
+#define CTN_REV01_UART_COMMx
+
+/*
+	Jace. 200214. Add blynk's App. function.
+*/
+#define BLYNK_APPS
+
+/*
+	Jace. 200225. Add blynk's i2c slave function.
+*/
+#define BLYNK_I2C
+
+/*
+	Jace. 200309. Add Factory reset after 20th reconnect timeout.
+*/
+#define FACTORY_RESET
+
+
+#if defined(BLYNK_I2C)
+void blynk_notify_i2c_i94124(uint8_t cmd);
+#endif
 
 #ifdef __cplusplus
 }

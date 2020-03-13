@@ -30,7 +30,7 @@
 
 #include "app_defs.h"
 
-#define ES_TAG "CODEC_ES8388"
+#define ES_TAG "I94124"
 
 #define ES8388_DISABLE_MUTE 0x00   //disable mute
 #define ES8388_ENABLE_MUTE  0x01   //enable  mute
@@ -49,12 +49,23 @@
 
 uint8_t curr_vol = 0;
 
+#include <voice_assistant_app_cb.h>
+#if defined(BLYNK_I2C)
+extern va_dialog_states_t va_led_get_state(void);
+#endif
+
+#if defined(BLYNK_APPS)
+extern bool vent_power_on;
+extern uint8_t vent_step;
+#endif
+
 #ifdef CTN_REV01_I2C
 #include <tone.h>
 #include <va_dsp.h>
 
-#define TRIGGER		0x01
-#define TIMEOUT		0x02
+#define TRIGGER		0xF1
+#define MASTERACK	0x50
+#define TIMEOUT		0xF2
 #define POWEROFF	0x10
 #define POWERON		0x11
 #define FAN1		0x21
@@ -64,16 +75,22 @@ uint8_t curr_vol = 0;
 #define TIMER4H		0x34
 #define TIMER8H		0x38
 #define AIMODE		0x41
-#define UNMUTE		0x50
-#define MUTE		0x51
+#define UNMUTE		0x60
+#define MUTE		0x61
 
 #define TRI_LED 14
 #define RES_LED 13
 
-#define ESP_SLAVE_ADDR			0x28            /*!< ESP32 slave address, you can set any 7bit value */
-#define DATA_LENGTH				2              /*!<Data buffer length for test buffer*/
-#define I2C_SLAVE_TX_BUF_LEN	(DATA_LENGTH)   /*!<I2C slave tx buffer size */
-#define I2C_SLAVE_RX_BUF_LEN	(DATA_LENGTH)   /*!<I2C slave rx buffer size */
+#define ESP_SLAVE_ADDR			0x28				/*!< ESP32 slave address, you can set any 7bit value */
+#if defined(BLYNK_I2C)
+#define DATA_LENGTH				4					/*!<Data buffer length for test buffer*/
+#define I2C_SLAVE_TX_BUF_LEN	(DATA_LENGTH * 2)	/*!<I2C slave tx buffer size */
+#define I2C_SLAVE_RX_BUF_LEN	(DATA_LENGTH * 2)	/*!<I2C slave rx buffer size */
+#else
+#define DATA_LENGTH				2					/*!<Data buffer length for test buffer*/
+#define I2C_SLAVE_TX_BUF_LEN	(DATA_LENGTH)		/*!<I2C slave tx buffer size */
+#define I2C_SLAVE_RX_BUF_LEN	(DATA_LENGTH)		/*!<I2C slave rx buffer size */
+#endif
 
 /**
  * @brief Initialization function for i2c
@@ -91,7 +108,11 @@ static esp_err_t audio_codec_i2c_init(int i2c_slave_port)
 	pf_i2c_pin.slave.slave_addr = ESP_SLAVE_ADDR;
 
 	res |= i2c_param_config(i2c_slave_port, &pf_i2c_pin);
+#if defined(BLYNK_I2C)
+	res |= i2c_driver_install(i2c_slave_port, pf_i2c_pin.mode, I2C_SLAVE_RX_BUF_LEN, I2C_SLAVE_TX_BUF_LEN, 0);
+#else
 	res |= i2c_driver_install(i2c_slave_port, pf_i2c_pin.mode, I2C_SLAVE_RX_BUF_LEN, I2C_SLAVE_TX_BUF_LEN, 1);
+#endif
 
 	return res;
 }
@@ -110,45 +131,70 @@ static esp_err_t ctn_tone_play(uint8_t cmd)
 	bin_info.sample_rate = 16000;
 	bin_info.channels = 1;
 	bin_info.bits_per_sample = 16;
-	printf("___ Jace_Test ___ cmd[%x]\n", cmd);
+
 	switch(cmd)
 	{
 		case POWEROFF:
+			LOG_8388("POWEROFF");
 			res = tone_play_custom(&_binary_02_bin_start, &_binary_02_bin_end, &bin_info);
+#if defined(BLYNK_APPS)
+			if(res == ESP_OK) vent_power_on = false;
+#endif
 			break;
 		case POWERON:
+			LOG_8388("POWERON");
 			res = tone_play_custom(&_binary_01_bin_start, &_binary_01_bin_end, &bin_info);
+#if defined(BLYNK_APPS)
+			if(res == ESP_OK) vent_power_on = true;
+#endif
 			break;
 		case FAN1:
+			LOG_8388("FAN1");
 			res = tone_play_custom(&_binary_03_bin_start, &_binary_03_bin_end, &bin_info);
+#if defined(BLYNK_APPS)
+			if(res == ESP_OK) vent_step = 11;
+#endif
 			break;
 		case FAN2:
+			LOG_8388("FAN2");
 			res = tone_play_custom(&_binary_04_bin_start, &_binary_04_bin_end, &bin_info);
+#if defined(BLYNK_APPS)
+			if(res == ESP_OK) vent_step = 12;
+#endif
 			break;
 		case FAN3:
+			LOG_8388("FAN3");
 			res = tone_play_custom(&_binary_05_bin_start, &_binary_05_bin_end, &bin_info);
+#if defined(BLYNK_APPS)
+			if(res == ESP_OK) vent_step = 13;
+#endif
 			break;
 		case TIMER1H:
+			LOG_8388("TIMER1H");
 			res = tone_play_custom(&_binary_06_bin_start, &_binary_06_bin_end, &bin_info);
 			break;
 		case TIMER4H:
+			LOG_8388("TIMER4H");
 			res = tone_play_custom(&_binary_07_bin_start, &_binary_07_bin_end, &bin_info);
 			break;
 		case TIMER8H:
+			LOG_8388("TIMER8H");
 			res = tone_play_custom(&_binary_08_bin_start, &_binary_08_bin_end, &bin_info);
 			break;
 		case AIMODE:
+			LOG_8388("AIMODE");
 			res = tone_play_custom(&_binary_09_bin_start, &_binary_09_bin_end, &bin_info);
 			break;
 		case UNMUTE:
+			LOG_8388("UNMUTE");
 			res = tone_play_custom(&_binary_10_bin_start, &_binary_10_bin_end, &bin_info);
 			break;
 		case MUTE:
+			LOG_8388("MUTE");
 			res = tone_play_custom(&_binary_11_bin_start, &_binary_11_bin_end, &bin_info);
 			break;
 	}
 
-	printf("___ Jace_Test ___ res[%d]\n", res);
 	return res;
 }
 #endif
@@ -162,16 +208,21 @@ static void i2c_slave_read_test(void *arg)
 
 	while (1) {
 		len = i2c_slave_read_buffer( I2C_NUM_0, data_rd, DATA_LENGTH, 100 / portTICK_RATE_MS);
-		if (len > 0) {
-			LOG_8388("___ Jace_Test ___ data[%x]", data_rd[0]);
+
+		if ((va_led_get_state() == VA_IDLE) && (len > 0)) {
+			LOG_8388("___ Jace_Test ___ len[%d] data[0x%02x][0x%02x][0x%02x][0x%02x]", len, data_rd[0], data_rd[1], data_rd[2], data_rd[3]);
+			
 			switch(data_rd[0])
 			{
 				case TRIGGER:
+				case MASTERACK:
+					LOG_8388("TRIGGER");
 					va_dsp_mic_mute(1);
 					tone_play(TONE_WAKE_TOUCH);
 					gpio_set_level(TRI_LED, 0);
 					break;
 				case TIMEOUT:
+					LOG_8388("TIMEOUT");
 					va_dsp_mic_mute(0);
 					tone_play(TONE_ENDPOINT);
 					gpio_set_level(TRI_LED, 1);

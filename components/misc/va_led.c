@@ -111,6 +111,12 @@ static void va_led_set_state(size_t sz, const va_led_specs_t *va_led_conf)
 #define RES_LED 13
 #endif
 
+#if defined(BLYNK_I2C)
+#define ESPIDLE		0x6
+
+extern void blynk_notify_i2c_i94124(uint8_t cmd);
+#endif
+
 static void va_led_task(void *arg)
 {
     bool va_led_is_mute = false;
@@ -176,6 +182,10 @@ static void va_led_task(void *arg)
 					gpio_set_level(TRI_LED, 1);
 					gpio_set_level(RES_LED, 1);
 #endif
+#if defined(BLYNK_I2C)
+					blynk_notify_i2c_i94124(ESPIDLE);
+#endif
+
                     if(va_led_listening_end_flag && (va_led_priority[3].va_led_current_state == VA_IDLE)) {
                         va_led_set_state(va_led_con[VA_LED_WW_DEACTIVATE].va_led_state_sz, va_led_con[VA_LED_WW_DEACTIVATE].va_led_state_st);
                         va_led_listening_end_flag = false;
@@ -371,3 +381,11 @@ esp_err_t va_led_init(va_led_config_t va_led_conf[VA_LED_PATTERN_MAX])
     }
     return ESP_OK;
 }
+
+#if defined(BLYNK_I2C)
+va_dialog_states_t va_led_get_state(void)
+{
+	return va_led_priority[3].va_led_current_state;
+}
+#endif
+

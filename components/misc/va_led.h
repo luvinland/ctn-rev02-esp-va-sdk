@@ -11,6 +11,8 @@
 #include <voice_assistant.h>
 #include <voice_assistant_app_cb.h>
 
+#include "app_defs.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -94,6 +96,9 @@ typedef enum va_led_called_states {
     VA_CAN_START = (VA_SET_VOLUME_DONE + 2),
 } va_led_called_states_t;
 
+#if defined(BLYNK_I2C)
+va_dialog_states_t va_led_get_state(void);
+#endif
 
 #ifdef __cplusplus
 }

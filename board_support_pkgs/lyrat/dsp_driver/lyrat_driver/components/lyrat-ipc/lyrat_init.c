@@ -51,6 +51,12 @@ static struct dsp_data {
 
 int lyrat_stream_audio(uint8_t *buffer, int size, int wait);
 
+#if defined(BLYNK_I2C)
+#define ESPTRIGGER	0x5
+
+extern void blynk_notify_i2c_i94124(uint8_t cmd);
+#endif
+
 static void ww_detection_task(void *arg)
 {
     int frequency = esp_wwe_get_sample_rate();
@@ -71,6 +77,9 @@ static void ww_detection_task(void *arg)
                 priv_ms = new_ms;
                 if(x != 20) {
                     va_dsp_tap_to_talk_start();
+#if defined(BLYNK_I2C)
+					blynk_notify_i2c_i94124(ESPTRIGGER);
+#endif
                 }
             }
             chunks++;
